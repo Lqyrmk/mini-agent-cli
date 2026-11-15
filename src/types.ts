@@ -14,7 +14,7 @@ export type ToolResult =
   | { ok: true; value: unknown }
   | { ok: false; error: string };
 
-export type ToolHandler = (input: unknown) => Promise<ToolResult>
+export type ToolHandler = (input: unknown) => ToolResult | Promise<ToolResult>
 
 export type ToolDefinition = {
     name: string;
