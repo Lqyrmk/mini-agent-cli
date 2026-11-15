@@ -18,8 +18,7 @@ export async function callLLM(
     const completion = await client.chat.completions.create({
         messages,
         model: MODEL,
-        // @ts-expect-error DeepSeek 扩展参数，openai-node 类型未收录
-        thinking: {"type": "enabled"},
+        thinking: {type: "enabled"},
         reasoning_effort: "low",
         stream: false,
     });
