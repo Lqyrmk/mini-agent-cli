@@ -1,5 +1,5 @@
 import { callLLM } from "./llm.js"
-import type { Message, ToolCall, ToolResult } from "./types.js";
+import type { Message, AgentReply, ToolCall, ToolResult } from "./types.js";
 import { toolMap } from "./tools.js"
 
 
@@ -8,7 +8,7 @@ const MAX_ROUNDS = 8;
 
 
 export type Agent = {
-    chat: (userText: string) => Promise<string>;
+    chat: (userText: string) => Promise<AgentReply>;
     history: () => readonly Message[];
 }
 
@@ -21,9 +21,11 @@ export function createAgent(): Agent {
 
     const history = () => messages;
 
-    async function chat(userText: string): Promise<string>  {
+    async function chat(userText: string): Promise<AgentReply>  {
 
         messages.push({ role: "user", content: userText });
+
+        console.log(">>> 思考过程：")
 
         // Agent Loop
         for (let i = 0; i < MAX_ROUNDS; i++) {
@@ -38,8 +40,16 @@ export function createAgent(): Agent {
 
             const toolCalls = reply.toolCalls ?? [];
             if (toolCalls.length === 0) {
-                return reply.content ?? "";
+                return {  // AgentReply
+                    ok: true,
+                    value: {
+                        content: reply.content,
+                        reasoning_content: reply.reasoning_content,
+                    },
+                };
             }
+
+            console.log(reply.reasoning_content);
 
             // tool call
             for (const call of toolCalls) {
@@ -54,7 +64,7 @@ export function createAgent(): Agent {
 
         }
 
-        return `达到最大轮数 ${MAX_ROUNDS} 轮，Agent 停止。`;
+        return { ok: false, error: `达到最大轮数 ${MAX_ROUNDS} 轮，Agent 停止。` };
     }
 
     return {

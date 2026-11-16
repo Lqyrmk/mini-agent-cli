@@ -4,10 +4,19 @@ export type ToolCall = {
     arguments: string;
 }
 
+export type Reply = {
+    content: string,
+    reasoning_content: string,
+}
+
+export type AgentReply =
+  | { ok: true; value: Reply}
+  | { ok: false; error: string };
+
 export type Message =
   | { role: "system"; content: string }
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string; toolCalls?: ToolCall[] }
+  | { role: "assistant"; content: string; reasoning_content: string; toolCalls?: ToolCall[] }
   | { role: "tool"; toolCallId: string; content: string };
 
 export type ToolResult =

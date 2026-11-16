@@ -14,8 +14,18 @@ async function main() {
             if (userInput === "exit" || userInput === "/exit" || userInput === "exit()") break;
             if (!userInput) continue;
 
-            const answer = await agent.chat(userInput);
-            console.log("> Agent: ", answer);
+            console.log("> Agent: ");
+
+            const agentReply = await agent.chat(userInput);
+
+            if (agentReply.ok) {
+                const answer = agentReply.value;
+                console.log(answer.reasoning_content);
+                console.log(">>> 回答：\n", answer.content);
+            } else {
+                console.log(agentReply.error);
+            }
+
         }
     } catch (err: unknown) {
         console.error("出错:", err instanceof Error ? err.message : err);

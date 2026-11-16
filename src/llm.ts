@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import type { ChatCompletionMessageParam } from 'openai/resources';
+import type { ChatCompletionMessageParam, ChatCompletionMessage } from 'openai/resources';
 import { openaiTools } from './tools.js';
 import type { Message, ToolCall } from './types.js';
 
@@ -13,6 +13,11 @@ const client = new OpenAI({
 });
 
 const MODEL = "deepseek-flash";
+
+// 定义扩展类型：标准 ChatCompletionMessage 加上可能存在的 reasoning_content
+type ChatCompletionMessageWithReasoning  = ChatCompletionMessage & {
+    reasoning_content?: string;  // 可能为 undefined
+};
 
 export async function callLLM(
     messages: Message[]
@@ -68,12 +73,17 @@ export async function callLLM(
         throw new Error("模型未返回内容");
     }
 
-    const reply = choice.message;
+    // 扩展返回类型
+    const reply = choice.message as ChatCompletionMessageWithReasoning;
 
     // SDK 返回的工具调用列表，需要转换为业务封装的工具调用类型
 
     if (!reply.tool_calls || reply.tool_calls?.length === 0) {
-        return { role: "assistant", content: reply.content ?? "" };
+        return {
+            role: "assistant",
+            content: reply.content ?? "",  // 可能为 null
+            reasoning_content: reply.reasoning_content ?? "",  // 可能为 undefined
+        };
     }
 
     const toolCalls: ToolCall[] = reply.tool_calls.map(
@@ -93,6 +103,7 @@ export async function callLLM(
     return {
         role: "assistant",
         content: reply.content ?? "",
+        reasoning_content: reply.reasoning_content ?? "",
         toolCalls,
     };
 
