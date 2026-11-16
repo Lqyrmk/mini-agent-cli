@@ -1,4 +1,4 @@
-import { object, properties, z } from "zod";
+import { z } from "zod";
 import type { ToolDefinition, ToolHandler } from "./types.js"
 import type { ChatCompletionTool } from 'openai/resources';
 

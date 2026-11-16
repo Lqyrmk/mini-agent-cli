@@ -1,6 +1,5 @@
 import { callLLM } from "./llm.js"
-import type { ChatCompletionMessageParam, ChatCompletionMessageToolCall } from 'openai/resources';
-import type { ToolResult } from "./types.js";
+import type { Message, ToolCall, ToolResult } from "./types.js";
 import { toolMap } from "./tools.js"
 
 
@@ -10,13 +9,13 @@ const MAX_ROUNDS = 8;
 
 export type Agent = {
     chat: (userText: string) => Promise<string>;
-    history: () => readonly ChatCompletionMessageParam[];
+    history: () => readonly Message[];
 }
 
 export function createAgent(): Agent {
 
     // Agent 对话历史
-    const messages: ChatCompletionMessageParam[] = [
+    const messages: Message[] = [
         { role: "system", content: SYSTEM_PROMPT },
     ];
 
@@ -37,7 +36,7 @@ export function createAgent(): Agent {
 
             messages.push(reply);  // { role: "assistant", ... }
 
-            const toolCalls = reply.tool_calls ?? [];
+            const toolCalls = reply.toolCalls ?? [];
             if (toolCalls.length === 0) {
                 return reply.content ?? "";
             }
@@ -48,7 +47,7 @@ export function createAgent(): Agent {
                 console.log("- 工具调用结果: ", result)
                 messages.push({
                     role: "tool",
-                    tool_call_id: call.id,
+                    toolCallId: call.id,
                     content: JSON.stringify(result),
                 });
             }
@@ -65,19 +64,13 @@ export function createAgent(): Agent {
 
 }
 
-async function executeTool(call: ChatCompletionMessageToolCall): Promise<ToolResult> {
-    if (call.type === "function") {
-        const toolName = call.function.name;
-        const handler = toolMap[toolName];
-        if (!handler) {
-            return { ok: false, error: `未知的工具: ${toolName}` }
-        }
-        console.log(`- 模型调用了工具：${toolName}，参数：${typeof call.function.arguments}`)
-        const args = JSON.parse(call.function.arguments)
-        return await handler(args)
-
-    } else {  // type: custom
-        return { ok: false, error: "当前不支持 ChatCompletionMessageCustomToolCall 类型的工具调用：" }
+async function executeTool(call: ToolCall): Promise<ToolResult> {
+    const toolName = call.name;
+    const handler = toolMap[toolName];
+    if (!handler) {
+        return { ok: false, error: `未知的工具: ${toolName}` }
     }
-
+    const args = JSON.parse(call.arguments)
+    console.log("- 模型调用了工具：", toolName, "，参数：", args)
+    return await handler(args)
 }

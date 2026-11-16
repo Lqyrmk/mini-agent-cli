@@ -1,7 +1,7 @@
 export type ToolCall = {
     id: string;
     name: string;
-    arguments: unknown;
+    arguments: string;
 }
 
 export type Message =
