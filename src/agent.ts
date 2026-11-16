@@ -1,5 +1,7 @@
 import { callLLM } from "./llm.js"
-import type { ChatCompletionMessageParam } from 'openai/resources';
+import type { ChatCompletionMessageParam, ChatCompletionMessageToolCall } from 'openai/resources';
+import type { ToolResult } from "./types.js";
+import { toolMap } from "./tools.js"
 
 
 const SYSTEM_PROMPT = "You are a helpful assistant.";
@@ -28,11 +30,12 @@ export function createAgent(): Agent {
         for (let i = 0; i < MAX_ROUNDS; i++) {
 
             const reply = await callLLM(messages);
-            messages.push(reply);
 
             if (reply.role !== 'assistant') {
                 throw new Error("LLM 返回非 assistant 消息");
             }
+
+            messages.push(reply);  // { role: "assistant", ... }
 
             const toolCalls = reply.tool_calls ?? [];
             if (toolCalls.length === 0) {
@@ -40,7 +43,15 @@ export function createAgent(): Agent {
             }
 
             // tool call
-            // for call in toolCalls
+            for (const call of toolCalls) {
+                const result = await executeTool(call);
+                console.log("- 工具调用结果: ", result)
+                messages.push({
+                    role: "tool",
+                    tool_call_id: call.id,
+                    content: JSON.stringify(result),
+                });
+            }
 
         }
 
@@ -51,5 +62,22 @@ export function createAgent(): Agent {
         chat,
         history
     };
+
+}
+
+async function executeTool(call: ChatCompletionMessageToolCall): Promise<ToolResult> {
+    if (call.type === "function") {
+        const toolName = call.function.name;
+        const handler = toolMap[toolName];
+        if (!handler) {
+            return { ok: false, error: `未知的工具: ${toolName}` }
+        }
+        console.log(`- 模型调用了工具：${toolName}，参数：${typeof call.function.arguments}`)
+        const args = JSON.parse(call.function.arguments)
+        return await handler(args)
+
+    } else {  // type: custom
+        return { ok: false, error: "当前不支持 ChatCompletionMessageCustomToolCall 类型的工具调用：" }
+    }
 
 }

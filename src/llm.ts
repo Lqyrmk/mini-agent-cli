@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import type { ChatCompletionMessage, ChatCompletionMessageParam } from 'openai/resources';
+import type { ChatCompletionMessage, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources';
+import { openaiTools } from './tools.js';
 
 // load value from .env
 dotenv.config();
@@ -18,6 +19,8 @@ export async function callLLM(
     const completion = await client.chat.completions.create({
         messages,
         model: MODEL,
+        tools: openaiTools,
+        tool_choice: "auto",
         thinking: {type: "enabled"},
         reasoning_effort: "low",
         stream: false,

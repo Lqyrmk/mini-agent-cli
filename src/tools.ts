@@ -1,5 +1,6 @@
 import { object, properties, z } from "zod";
 import type { ToolDefinition, ToolHandler } from "./types.js"
+import type { ChatCompletionTool } from 'openai/resources';
 
 // zod 校验 JSON Schema
 
@@ -48,7 +49,7 @@ const getWeather: ToolHandler = (input) => {
 
 
 // 工具定义
-export const tools: ToolDefinition[] = [
+const tools: ToolDefinition[] = [
     {
         name: "add",
         description: "用于计算两个数字的和。",
@@ -86,7 +87,20 @@ export const tools: ToolDefinition[] = [
     },
 ]
 
+// 转为 OpenAI SDK 使用的工具定义列表
+export const openaiTools: ChatCompletionTool[] = tools.map(
+    (t) => ({
+        type: "function",
+        function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters
+        },
+    }),
+);
+
 // 工具 handler 映射
+// 给定一个工具名，返回一个可执行的工具函数
 export const toolMap: Record<string, ToolHandler> = Object.fromEntries(
     tools.map( (t) => [t.name, t.handler] ),
 );
