@@ -58,7 +58,7 @@ export function createAgent(): Agent {
                 };
             }
 
-            console.log(reply.reasoning_content);
+            events.onReasoningResult?.(reply.reasoning_content)
 
             // tool call
             for (const call of toolCalls) {
