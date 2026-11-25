@@ -41,6 +41,6 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "include": ["src", "test/stream_test.ts"],
-  "exclude": ["node_modules", "dist", "test"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }
