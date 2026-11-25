@@ -1,14 +1,23 @@
 import { callLLM } from "./llm.js"
 import type { Message, AgentReply, ToolCall, ToolResult } from "./types.js";
 import { toolMap } from "./tools.js"
+import ar from "zod/v4/locales/ar.cjs";
 
 
 const SYSTEM_PROMPT = "You are a helpful assistant.";
 const MAX_ROUNDS = 8;
 
+export type AgentEvents = {
+    onReasoningStart?: () => void,
+    onReasoningResult?: (result: string) => void,
+    onContentStart?: () => void,
+    onContentResult?: (result: string) => void,
+    onToolCall?: (call: ToolCall, args: unknown) => void,
+    onToolResult?: (call: ToolCall, result: ToolResult) => void,
+}
 
 export type Agent = {
-    chat: (userText: string) => Promise<AgentReply>;
+    chat: (userText: string, events: AgentEvents) => Promise<AgentReply>;
     history: () => readonly Message[];
 }
 
@@ -21,11 +30,11 @@ export function createAgent(): Agent {
 
     const history = () => messages;
 
-    async function chat(userText: string): Promise<AgentReply>  {
+    async function chat(userText: string, events: AgentEvents): Promise<AgentReply>  {
 
         messages.push({ role: "user", content: userText });
 
-        console.log(">>> 思考过程：")
+        events.onReasoningStart?.()
 
         // Agent Loop
         for (let i = 0; i < MAX_ROUNDS; i++) {
@@ -53,8 +62,8 @@ export function createAgent(): Agent {
 
             // tool call
             for (const call of toolCalls) {
-                const result = await executeTool(call);
-                console.log("- 工具调用结果: ", result)
+                const result = await executeTool(call, events);
+                events.onToolResult?.(call, result)
                 messages.push({
                     role: "tool",
                     toolCallId: call.id,
@@ -74,13 +83,15 @@ export function createAgent(): Agent {
 
 }
 
-async function executeTool(call: ToolCall): Promise<ToolResult> {
+async function executeTool(call: ToolCall, events: AgentEvents): Promise<ToolResult> {
     const toolName = call.name;
     const handler = toolMap[toolName];
     if (!handler) {
         return { ok: false, error: `未知的工具: ${toolName}` }
     }
     const args = JSON.parse(call.arguments)
-    console.log("- 模型调用了工具：", toolName, "，参数：", args)
-    return await handler(args)
+
+    events.onToolCall?.(call, args)
+    const toolResult = await handler(args)
+    return toolResult
 }

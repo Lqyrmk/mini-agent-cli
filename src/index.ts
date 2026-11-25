@@ -1,9 +1,19 @@
+import type { AgentEvents } from './agent.js'
 import { createAgent } from './agent.js'
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from 'node:process'
 
 const agent = createAgent();
 console.log("Mini-Agent 已启动。输入 /exit 退出。");
+
+const events: AgentEvents = {
+    onReasoningStart: () => stdout.write("\n>>> 思考过程：\n"),
+    onReasoningResult: (result) => stdout.write(result),
+    onContentStart: () => stdout.write("\n>>> 回答：\n"),
+    onContentResult: (result) => stdout.write(result),
+    onToolCall: (call, args) => stdout.write(`\n- 模型调用了工具：${call.name}，参数：${JSON.stringify(args)}\n`),
+    onToolResult: (call, result) => stdout.write(`\n- ${call.name} 工具调用结果: ${JSON.stringify(result)}\n`),
+}
 
 async function main() {
     const rl = createInterface({ input: stdin, output: stdout });
@@ -16,12 +26,15 @@ async function main() {
 
             console.log("> Agent: ");
 
-            const agentReply = await agent.chat(userInput);
+            const agentReply = await agent.chat(userInput, events);
 
             if (agentReply.ok) {
                 const answer = agentReply.value;
-                console.log(answer.reasoning_content);
-                console.log(">>> 回答：\n", answer.content);
+
+                events.onReasoningResult?.(answer.reasoning_content)
+                events.onContentStart?.()
+                events.onContentResult?.(answer.content)
+
             } else {
                 console.log(agentReply.error);
             }
