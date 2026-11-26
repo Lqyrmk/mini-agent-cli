@@ -1,4 +1,5 @@
 import { callLLM } from "./llm.js"
+import type { StreamCallbacks } from "./llm.js"
 import type { Message, AgentReply, ToolCall, ToolResult } from "./types.js";
 import { toolMap } from "./tools.js"
 import ar from "zod/v4/locales/ar.cjs";
@@ -7,11 +8,7 @@ import ar from "zod/v4/locales/ar.cjs";
 const SYSTEM_PROMPT = "You are a helpful assistant.";
 const MAX_ROUNDS = 8;
 
-export type AgentEvents = {
-    onReasoningStart?: () => void,
-    onReasoningResult?: (result: string) => void,
-    onContentStart?: () => void,
-    onContentResult?: (result: string) => void,
+export type AgentEvents = StreamCallbacks & {
     onToolCall?: (call: ToolCall, args: unknown) => void,
     onToolResult?: (call: ToolCall, result: ToolResult) => void,
 }
@@ -34,12 +31,10 @@ export function createAgent(): Agent {
 
         messages.push({ role: "user", content: userText });
 
-        events.onReasoningStart?.()
-
         // Agent Loop
         for (let i = 0; i < MAX_ROUNDS; i++) {
 
-            const reply = await callLLM(messages);
+            const reply = await callLLM(messages, events);
 
             if (reply.role !== 'assistant') {
                 throw new Error("LLM 返回非 assistant 消息");
@@ -58,12 +53,9 @@ export function createAgent(): Agent {
                 };
             }
 
-            events.onReasoningResult?.(reply.reasoning_content)
-
             // tool call
             for (const call of toolCalls) {
                 const result = await executeTool(call, events);
-                events.onToolResult?.(call, result)
                 messages.push({
                     role: "tool",
                     toolCallId: call.id,
@@ -76,10 +68,7 @@ export function createAgent(): Agent {
         return { ok: false, error: `达到最大轮数 ${MAX_ROUNDS} 轮，Agent 停止。` };
     }
 
-    return {
-        chat,
-        history
-    };
+    return { chat, history };
 
 }
 
@@ -89,9 +78,16 @@ async function executeTool(call: ToolCall, events: AgentEvents): Promise<ToolRes
     if (!handler) {
         return { ok: false, error: `未知的工具: ${toolName}` }
     }
-    const args = JSON.parse(call.arguments)
+
+    let args;
+    try {
+        args = JSON.parse(call.arguments)
+    } catch {
+        return { ok: false, error: `工具参数不是合法 JSON: ${call.arguments}` }
+    }
 
     events.onToolCall?.(call, args)
     const toolResult = await handler(args)
+    events.onToolResult?.(call, toolResult)
     return toolResult
 }

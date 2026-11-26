@@ -7,11 +7,11 @@ const agent = createAgent();
 console.log("Mini-Agent 已启动。输入 /exit 退出。");
 
 const events: AgentEvents = {
-    onReasoningStart: () => stdout.write("\n>>> 思考过程：\n"),
+    onReasoningStart: () => stdout.write("\n>>> 思考：\n"),
     onReasoningResult: (result) => stdout.write(result),
     onContentStart: () => stdout.write("\n>>> 回答：\n"),
     onContentResult: (result) => stdout.write(result),
-    onToolCall: (call, args) => stdout.write(`\n- 模型调用了工具：${call.name}，参数：${JSON.stringify(args)}\n`),
+    onToolCall: (call, args) => stdout.write(`\n\n- 模型调用了工具：${call.name}，参数：${JSON.stringify(args)}\n`),
     onToolResult: (call, result) => stdout.write(`\n- ${call.name} 工具调用结果: ${JSON.stringify(result)}\n`),
 }
 
@@ -28,16 +28,10 @@ async function main() {
 
             const agentReply = await agent.chat(userInput, events);
 
-            if (agentReply.ok) {
-                const answer = agentReply.value;
-
-                events.onReasoningResult?.(answer.reasoning_content)
-                events.onContentStart?.()
-                events.onContentResult?.(answer.content)
-
-            } else {
-                console.log(agentReply.error);
+            if (!agentReply.ok) {
+                console.log("\n" + agentReply.error);
             }
+            console.log();
 
         }
     } catch (err: unknown) {
